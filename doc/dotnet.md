@@ -11,9 +11,9 @@
 
 
 # .Net Wrapper Status
-- [ ] GNU/Linux wrapper
-- [ ] MacOS wrapper
-- [ ] Windows wrapper
+* [ ] GNU/Linux wrapper
+* [ ] MacOS wrapper
+* [ ] Windows wrapper
 
 # Introduction
 Try to build a .NetStandard2.0 native (for win-x64, linux-x64 and osx-x64) nuget package using [`dotnet/cli`](https://github.com/dotnet/cli) and the *new* .csproj format.  
@@ -40,17 +40,25 @@ You'll need the ".Net Core SDK 3.1" to get the dotnet cli.
 i.e. We won't/can't rely on VS 2019 since we want a portable cross-platform [`dotnet/cli`](https://github.com/dotnet/cli) pipeline. 
 
 # Directory Layout
-* [`src/runtime.linux-x64.CMakeSwig`](src/runtime.linux-x64.CMakeSwig) Contains the hypothetical C++ linux-x64 shared library with its .NetStandard2.0 wrapper source code.
-* [`src/runtime.osx-x64.CMakeSwig`](src/runtime.osx-x64.CMakeSwig) Contains the hypothetical C++ osx-x64 shared library with its .NetStandard2.0 wrapper source code.
-* [`src/runtime.win-x64.CMakeSwig`](src/runtime.win-x64.CMakeSwig) Contains the hypothetical C++ win-x64 shared library with its .NetStandard2.0 wrapper source code.
-* [`src/CMakeSwig`](src/CMakeSwig) Is a meta .NetStandard2.0 library which should depends on all previous available packages.
-* [`src/CMakeSwigApp`](src/CMakeSwigApp) Is a .NetCoreApp2.1 application with a **`PackageReference`** to `CMakeSwig` project to test.
+* [`src/dotnet/Mizux.CMakeSwig.runtime.linux-x64`](src/dotnet/Mizux.CMakeSwig.runtime.linux-x64)
+Contains the hypothetical C++ linux-x64 shared library.
+* [`src/dotnet/Mizux.CMakeSwig.runtime.osx-x64`](src/dotnet/Mizux.CMakeSwig.runtime.osx-x64)
+Contains the hypothetical C++ osx-x64 shared library.
+* [`src/dotnet/Mizux.CMakeSwig.runtime.win-x64`](src/dotnet/Mizux.CMakeSwig.runtime.win-x64)
+Contains the hypothetical C++ win-x64 shared library.
+* [`src/dotnet/Mizux.CMakeSwig`](src/dotnet/Mizux.CMakeSwig)
+Is the .NetStandard2.0 library which should depends on all previous available packages.
+* [`src/dotnet/Mizux.CMakeSwigApp`](src/dotnet/Mizux.CMakeSwigApp)
+Is a .NetCoreApp2.1 application with a **`PackageReference`** to `Mizux.CMakeSwig` project to test.
+
+note: While Microsoft use for native libraries naming `runtime-<rid>.Company.Project`,
+it is very difficult to get ownership on it, so you should prefer to use`Company.Project.runtime-<rid>` instead since you can have ownership on `Company.*` prefix easily.
 
 # Build Process
 To Create a native dependent package we will split it in two parts:
-- A bunch of `runtime.{rid}.Mizux.CMakeSwig.nupkg` packages for each 
+* A bunch of `runtime.{rid}.Mizux.CMakeSwig.nupkg` packages for each 
 [Runtime Identifier (RId)](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog) targeted.
-- A meta-package `Mizux.CMakeSwig.nupkg` depending on each runtime packages.
+* A meta-package `Mizux.CMakeSwig.nupkg` depending on each runtime packages.
 
 note: [`Microsoft.NetCore.App` packages](https://www.nuget.org/packages?q=Microsoft.NETCore.App)
 follow this layout.
@@ -85,27 +93,27 @@ note: For a C++/Swig CMake cross-platform project sample, take a look at [Mizux/
 So first let's create the local `runtime.{rid}.Mizux.CMakeSwig.nupkg` nuget package.
 
 Here some dev-note concerning this `runtime.{rid}.CMakeSwig.csproj`.
-- `AssemblyName` must be `Mizux.CMakeSwig.dll` i.e. all {rid} projects **must** generate an assembly with the **same** name (i.e. no {rid} in the name)
+* `AssemblyName` must be `Mizux.CMakeSwig.dll` i.e. all {rid} projects **must** generate an assembly with the **same** name (i.e. no {rid} in the name)
   ```xml
   <RuntimeIdentifier>{rid}</RuntimeIdentifier>
   <AssemblyName>Mizux.CMakeSwig</AssemblyName>
   <PackageId>runtime.{rid}.Mizux.CMakeSwig</PackageId>
   ```
-- Once you specify a `RuntimeIdentifier` then `dotnet build` or `dotnet build -r {rid}` 
+* Once you specify a `RuntimeIdentifier` then `dotnet build` or `dotnet build -r {rid}` 
 will behave identically (save you from typing it).
   - note: not the case if you use `RuntimeIdentifiers` (notice the 's')
-- It is [recommended](https://docs.microsoft.com/en-us/nuget/create-packages/native-packages)
+* It is [recommended](https://docs.microsoft.com/en-us/nuget/create-packages/native-packages)
 to add the tag `native` to the 
 [nuget package tags](https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#packagetags)
   ```xml
   <PackageTags>native</PackageTags>
   ```
-- Specify the output target folder for having the assembly output in `runtimes/{rid}/lib/{framework}` in the nupkg
+* Specify the output target folder for having the assembly output in `runtimes/{rid}/lib/{framework}` in the nupkg
   ```xml
   <BuildOutputTargetFolder>runtimes/$(RuntimeIdentifier)/lib</BuildOutputTargetFolder>
   ```
   note: Every files with an extension different from `.dll` will be filter out by nuget.
-- Add the native shared library to the nuget package in the repository `runtimes/{rib}/native`. e.g. for linux-x64:
+* Add the native shared library to the nuget package in the repository `runtimes/{rib}/native`. e.g. for linux-x64:
   ```xml
   <Content Include="*.so">
     <PackagePath>runtimes/linux-x64/native/%(Filename)%(Extension)</PackagePath>
@@ -113,11 +121,11 @@ to add the tag `native` to the
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>
   ```
-- Generate the runtime package to a defined directory (i.e. so later in meta CMakeSwig package we will be able to locate it)
+* Generate the runtime package to a defined directory (i.e. so later in meta CMakeSwig package we will be able to locate it)
   ```xml
   <PackageOutputPath>{...}/packages</PackageOutputPath>
   ```
-- Generate the Reference Assembly (but don't include it to this runtime nupkg !, see below for explanation) using:
+* Generate the Reference Assembly (but don't include it to this runtime nupkg !, see below for explanation) using:
   ```xml
   <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
   ```
@@ -149,15 +157,15 @@ tips: since nuget package are zip archive you can use `unzip -l <package>.nupkg`
 So now, let's create the local `Mizux.CMakeSwig.nupkg` nuget package which will depend on our previous runtime package.
 
 Here some dev-note concerning this `CMakeSwig.csproj`.
-- This package is a meta-package so we don't want to ship an empty assembly file:
+* This package is a meta-package so we don't want to ship an empty assembly file:
   ```xml
   <IncludeBuildOutput>false</IncludeBuildOutput>
   ```
-- Add the previous package directory:
+* Add the previous package directory:
   ```xml
   <RestoreSources>{...}/packages;$(RestoreSources)</RestoreSources>
   ```
-- Add dependency (i.e. `PackageReference`) on each runtime package(s) availabe:
+* Add dependency (i.e. `PackageReference`) on each runtime package(s) availabe:
   ```xml
   <ItemGroup Condition="Exists('{...}/packages/runtime.linux-x64.Mizux.CMakeSwig.1.0.0.nupkg')">
     <PackageReference Include="runtime.linux-x64.Mizux.CMakeSwig" Version="1.0.0" />
@@ -165,7 +173,7 @@ Here some dev-note concerning this `CMakeSwig.csproj`.
   ```
   Thanks to the `RestoreSource` we can work locally we our just builded package
   without the need to upload it on [nuget.org](https://www.nuget.org/).
-- To expose the .Net Surface API the `CMakeSwig.csproj` must contains a least one 
+* To expose the .Net Surface API the `CMakeSwig.csproj` must contains a least one 
 [Reference Assembly](https://docs.microsoft.com/en-us/nuget/reference/nuspec#explicit-assembly-references) of the previously rumtime package.
   ```xml
   <Content Include="../runtime.{rid}.CMakeSwig/bin/$(Configuration)/$(TargetFramework)/{rid}/ref/*.dll">
@@ -277,35 +285,30 @@ You should see something like this
 [1] Exit CMakeSwigApp
 ```
 
-# Appendices
+# First
+## Second
+### Third
+#### Fourth
+##### Fifth
+###### Sixth
+
+# Ressources
 Few links on the subject...
 
-## Ressources
-- [.NET Core RID Catalog](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)
-- [Creating native packages](https://docs.microsoft.com/en-us/nuget/create-packages/native-packages)
-- [Blog on Nuget Rid Graph](https://natemcmaster.com/blog/2016/05/19/nuget3-rid-graph/)
+## Documention
+First take a look at my [dotnet-native]() project
 
-- [Common MSBuild project properties](https://docs.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-project-properties?view=vs-2017)
-- [MSBuild well-known item metadata](https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-well-known-item-metadata?view=vs-2017)
-- [Additions to the csproj format for .NET Core](https://docs.microsoft.com/en-us/dotnet/core/tools/csproj)
-
-## Issues
+## Related Issues
 Some issue related to this process
-- [Nuget needs to support dependencies specific to target runtime #1660](https://github.com/NuGet/Home/issues/1660)
-- [Improve documentation on creating native packages #238](https://github.com/NuGet/docs.microsoft.com-nuget/issues/238)
+* [Nuget needs to support dependencies specific to target runtime #1660](https://github.com/NuGet/Home/issues/1660)
+* [Improve documentation on creating native packages #238](https://github.com/NuGet/docs.microsoft.com-nuget/issues/238)
 
-# Misc
-Image has been generated using [plantuml](http://plantuml.com/):
-```bash
-plantuml -Tpng doc/{file}.dot
-```
-So you can find the dot source files in [doc](doc).
+## Runtime IDentifier (RID)
+* [.NET Core RID Catalog](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)
+* [Creating native packages](https://docs.microsoft.com/en-us/nuget/create-packages/native-packages)
+* [Blog on Nuget Rid Graph](https://natemcmaster.com/blog/2016/05/19/nuget3-rid-graph/)
 
-# License
-
-Apache 2. See the LICENSE file for details.
-
-# Disclaimer
-
-This is not an official Google product, it is just code that happens to be
-owned by Google.
+## Reference on .csproj format
+* [Common MSBuild project properties](https://docs.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-project-properties?view=vs-2017)
+* [MSBuild well-known item metadata](https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-well-known-item-metadata?view=vs-2017)
+* [Additions to the csproj format for .NET Core](https://docs.microsoft.com/en-us/dotnet/core/tools/csproj)

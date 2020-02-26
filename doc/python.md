@@ -11,9 +11,9 @@
 
 
 # Python Wrapper Status
-- [x] GNU/Linux wrapper
-- [x] MacOS wrapper
-- [x] Windows wrapper
+* [x] GNU/Linux wrapper
+* [x] MacOS wrapper
+* [x] Windows wrapper
 
 # Introduction 
 To be compliant with [PEP513](https://www.python.org/dev/peps/pep-0513/#the-manylinux1-policy) a python package should embbed all its C++ shared libraries.
